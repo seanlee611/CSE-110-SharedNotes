@@ -2,19 +2,25 @@ package edu.ucsd.cse110.sharednotes.model;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class NoteRepository {
     private final NoteDao dao;
     private ScheduledFuture<?> poller; // what could this be for... hmm?
+    MutableLiveData<Note> realNoteData;
+    private final NoteAPI api;
 
     public NoteRepository(NoteDao dao) {
         this.dao = dao;
+        this.api = NoteAPI.provide();
     }
 
     // Synced Methods
@@ -98,17 +104,32 @@ public class NoteRepository {
             poller.cancel(true);
         }
 
+
+        MediatorLiveData<Note> noteData = new MediatorLiveData<>();
+        realNoteData = new MutableLiveData<Note>();
+        noteData.addSource(realNoteData, noteData::postValue);
         // Set up a background thread that will poll the server every 3 seconds.
 
+        poller = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
+            //Note jsonConv = new Note("","");
+            //NoteAPI na = new NoteAPI();
+            realNoteData.postValue(api.getNote(title));
+            //System.out.println("hihihihi");
+        }, 0, 3, TimeUnit.SECONDS);
         // You may (but don't have to) want to cache the LiveData's for each title, so that
         // you don't create a new polling thread every time you call getRemote with the same title.
         // You don't need to worry about killing background threads.
-
-        throw new UnsupportedOperationException("Not implemented yet");
+        //noteData.addSource(noteData, noteData::postValue);
+        return realNoteData;
+        //throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public void upsertRemote(Note note) {
         // TODO: Implement upsertRemote!
-        throw new UnsupportedOperationException("Not implemented yet");
+        Executors.newSingleThreadExecutor().submit(() -> {
+            api.putNote(note.title, note.toJSON());
+        });
+
+        //throw new UnsupportedOperationException("Not implemented yet");
     }
 }

@@ -11,8 +11,10 @@ import com.google.gson.Gson;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 
 public class NoteAPI {
     // TODO: Implement the API using OkHttp!
@@ -63,6 +65,51 @@ public class NoteAPI {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @WorkerThread
+    public Note getNote(String msg) {
+
+        String encodedMsg = msg.replace(" ", "%20");
+        var request = new Request.Builder()
+                .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedMsg)
+                .method("GET", null)
+                .build();
+
+        try (var response = client.newCall(request).execute()) {
+            assert response.body() != null;
+            var body = response.body().string();
+            Log.i("GET NOTE", body);
+            //return new Gson().fromJson(body, Note.class);
+            return Note.fromJSON(body);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+    }
+
+    @WorkerThread
+    public Note putNote(String msg, String noteJSON) {
+        MediaType JSON = MediaType.get("application/json; charset=utf-8");
+        var rBody = RequestBody.create(noteJSON, JSON);
+        String encodedMsg = msg.replace(" ", "%20");
+        var request = new Request.Builder()
+                .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedMsg)
+                .method("PUT", rBody)
+                .build();
+
+        try (var response = client.newCall(request).execute()) {
+            assert response.body() != null;
+            var body = response.body().string();
+            Log.i("PUT NOTE", body);
+            //return new Gson().fromJson(body, Note.class);
+            return Note.fromJSON(body);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
     }
 
     @AnyThread
